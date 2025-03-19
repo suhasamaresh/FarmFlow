@@ -494,7 +494,7 @@ const LogHarvest = () => {
                 </p>
                 <p className="text-xs text-green-600 mt-1 font-medium">
                   Note: Please note down this ID as it will be used by
-                  transporters to record pickup and delivery.
+                  transporters to record pickup and delivery. This is also used by retailers, wholesalers for confirming delivery and arbitrators in cause of any disputes.
                 </p>
               </div>
 

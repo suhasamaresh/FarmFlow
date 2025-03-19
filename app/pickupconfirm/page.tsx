@@ -355,7 +355,7 @@ const FarmerPickupConfirmation = () => {
                         {!item.pickupConfirmed && (
                           <motion.button
                             onClick={() => handleConfirmPickup(item.produceId)}
-                            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg shadow-lg flex items-center"
+                            className="bg-green-600 hover:bg-green-700 text-white cursor-pointer px-4 py-2 rounded-lg shadow-lg flex items-center"
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             disabled={isLoading}
