@@ -1,287 +1,259 @@
-"use client"
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import * as web3 from '@solana/web3.js';
-import { Search, MapPin, Calendar, Package, Truck, User, CheckCircle, AlertCircle } from 'lucide-react';
+"use client";
 
-const Track = () => {
-  const [batchId, setBatchId] = useState('');
-  const [result, setResult] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+import React, { useState } from "react";
+import { motion } from "framer-motion";
+import { useAnchorWallet, useConnection } from "@solana/wallet-adapter-react";
+import { PublicKey } from "@solana/web3.js";
+import * as rawIdl from "../../idl.json";
+import type { DecentralizedAgSupply } from "../../types/decentralized_ag_supply";
+import Link from "next/link";
+import { ChevronLeft, Search, Leaf, Truck, Store, CheckCircle } from "lucide-react";
+import { AnchorProvider, Program, setProvider } from "@coral-xyz/anchor";
+import { toast } from "react-hot-toast";
 
-  // Animation variants
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        delayChildren: 0.2,
-        staggerChildren: 0.1
-      }
-    }
+const programId = new PublicKey(rawIdl.address);
+
+type ProduceStatus = {
+  id: string;
+  status: "Harvested" | "In Transit" | "Delivered" | "Verified";
+  farmer: string;
+  transporter?: string;
+  retailer?: string;
+  timestamp: string;
+  details: {
+    cropType: string;
+    quantity: number;
+    unit: string;
   };
-  
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: {
-      y: 0,
-      opacity: 1,
-      transition: {
-        type: "spring",
-        stiffness: 100
-      }
-    }
-  };
+};
 
-  // Mock status history data
-  const mockStatusHistory = [
-    { status: 'Harvested', date: '2025-03-01', location: 'Farm A, California', owner: 'John (Farmer)' },
-    { status: 'Quality Check', date: '2025-03-03', location: 'Farm A, California', owner: 'John (Farmer)' },
-    { status: 'In Transit', date: '2025-03-05', location: 'Route 66, Arizona', owner: 'Mike (Transporter)' },
-    { status: 'Received', date: '2025-03-07', location: 'Wholesale Market, Nevada', owner: 'Sarah (Wholesaler)' },
-    { status: 'Sold', date: '2025-03-10', location: 'Retail Store, Nevada', owner: 'Lisa (Retailer)' },
-  ];
+const ProduceStatusPage = () => {
+  const { connection } = useConnection();
+  const anchorWallet = useAnchorWallet();
+  const [produceId, setProduceId] = useState("");
+  const [isFetching, setIsFetching] = useState(false);
+  const [produceData, setProduceData] = useState<ProduceStatus | null>(null);
 
-  const handleSearch = async () => {
-    if (!batchId.trim()) {
-      setError('Please enter a batch ID');
+  const fetchProduceStatus = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!anchorWallet) {
+      toast.error("Please connect your wallet");
       return;
     }
-    
-    setIsLoading(true);
-    setError(null);
-    
+    if (!produceId) {
+      toast.error("Please enter a produce ID");
+      return;
+    }
+
+    setIsFetching(true);
     try {
-      const program = getProgram();
-      // Example PDA derivation for a Produce account.
-      // This would be replaced with actual blockchain call in production
-      // const [producePDA] = await web3.PublicKey.findProgramAddress(
-      //   [Buffer.from("produce"), Buffer.from(batchId)],
-      //   program.programId
-      // );
-      // const produceAccount = await program.account.produce.fetch(producePDA);
-      
-      // For demo purposes, we'll create a mock result after a delay
-      setTimeout(() => {
-        if (batchId === 'BAD123') {
-          setError('Batch not found');
-          setResult(null);
-        } else {
-          setResult({
-            id: batchId,
-            produceType: 'Organic Tomatoes',
-            quantity: '500 kg',
-            status: 'Sold',
-            farmLocation: 'Farm A, California',
-            harvestDate: '2025-03-01',
-            lastUpdated: Date.now() / 1000,
-            certifications: ['Organic', 'Fair Trade'],
-            temperature: '4°C',
-            statusHistory: mockStatusHistory
-          });
-        }
-        setIsLoading(false);
-      }, 1500);
-      
+      const provider = new AnchorProvider(connection, anchorWallet, {});
+      setProvider(provider);
+      const program = new Program(rawIdl as unknown as DecentralizedAgSupply, provider);
+
+      // Assuming produce PDA is derived from produceId
+      const [producePDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from("produce"), Buffer.from(produceId)],
+        programId
+      );
+
+      const produceAccount = await (program.account as any).produce.fetch(producePDA);
+      if (!produceAccount) {
+        throw new Error("Produce not found");
+      }
+
+      // Mocked data structure - adjust based on your actual IDL
+      const fetchedData: ProduceStatus = {
+        id: produceId,
+        status: produceAccount.status, // e.g., "Harvested", "In Transit", etc.
+        farmer: produceAccount.farmer.toBase58(),
+        transporter: produceAccount.transporter?.toBase58() || undefined,
+        retailer: produceAccount.retailer?.toBase58() || undefined,
+        timestamp: new Date(produceAccount.timestamp.toNumber() * 1000).toLocaleString(),
+        details: {
+          cropType: produceAccount.details.cropType,
+          quantity: produceAccount.details.quantity,
+          unit: produceAccount.details.unit,
+        },
+      };
+
+      setProduceData(fetchedData);
+      toast.success("Produce status retrieved!");
     } catch (err) {
-      console.error("Tracking error:", err);
-      setError('An error occurred while fetching the data');
-      setIsLoading(false);
+      console.error("Error fetching produce status:", err);
+      toast.error("Failed to fetch produce status. Check the ID and try again.");
+      setProduceData(null);
+    } finally {
+      setIsFetching(false);
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "Harvested": return <Leaf className="w-6 h-6 text-green-500" />;
+      case "In Transit": return <Truck className="w-6 h-6 text-blue-500" />;
+      case "Delivered": return <Store className="w-6 h-6 text-yellow-500" />;
+      case "Verified": return <CheckCircle className="w-6 h-6 text-purple-500" />;
+      default: return <Leaf className="w-6 h-6 text-green-500" />;
     }
   };
 
   return (
-    <motion.div 
-      initial="hidden"
-      animate="visible"
-      variants={containerVariants}
-      className="track-page min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-4 sm:p-6 lg:p-8"
-    >
-      <div className="max-w-6xl mx-auto">
-        <motion.div variants={itemVariants} className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
-            Track Produce
-          </h1>
-          <p className="text-gray-600">
-            Enter a batch ID to track its journey through the supply chain
-          </p>
-        </motion.div>
+    <section className="bg-gradient-to-r from-green-50 to-blue-50 min-h-screen py-20 px-4">
+      <motion.div
+        className="max-w-7xl mx-auto"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.8 }}
+      >
+        <Link href="/" className="text-gray-600 hover:text-green-600 mb-6 flex items-center font-medium">
+          <ChevronLeft className="mr-2" /> Back to Home
+        </Link>
 
-        <motion.div variants={itemVariants} className="mb-8">
-          <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-            <div className="flex flex-col md:flex-row items-stretch gap-4">
-              <div className="flex-1">
-                <input
-                  type="text"
-                  placeholder="Enter Batch ID (e.g. BTC12345)"
-                  value={batchId}
-                  onChange={(e) => setBatchId(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-              </div>
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={handleSearch}
-                disabled={isLoading}
-                className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white font-medium py-3 px-6 rounded-lg transition-all duration-200 flex items-center justify-center whitespace-nowrap"
-              >
-                {isLoading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-l-2 border-white mr-2"></div>
-                    Searching...
-                  </>
-                ) : (
-                  <>
-                    <Search size={18} className="mr-2" />
-                    Track Batch
-                  </>
-                )}
-              </motion.button>
-            </div>
-            
-            {error && (
-              <motion.div 
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mt-4 p-3 bg-red-50 text-red-700 rounded-lg flex items-center"
-              >
-                <AlertCircle size={18} className="mr-2" />
-                {error}
-              </motion.div>
-            )}
-          </div>
-        </motion.div>
-
-        {result && (
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ type: "spring", stiffness: 100 }}
-            className="space-y-6"
+        <div className="flex flex-col lg:flex-row items-center gap-12">
+          {/* Form Side */}
+          <motion.div
+            className="w-full lg:w-1/2"
+            initial={{ opacity: 0, x: -50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8 }}
           >
-            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-800">Batch Details</h2>
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                  result.status === 'Sold' ? 'bg-green-100 text-green-800' : 
-                  result.status === 'In Transit' ? 'bg-blue-100 text-blue-800' : 
-                  'bg-yellow-100 text-yellow-800'
-                }`}>
-                  {result.status}
-                </span>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div className="flex items-start">
-                    <Package size={20} className="text-green-600 mr-3 mt-1" />
-                    <div>
-                      <p className="text-sm text-gray-500">Produce Type</p>
-                      <p className="font-medium text-gray-800">{result.produceType}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start">
-                    <Calendar size={20} className="text-green-600 mr-3 mt-1" />
-                    <div>
-                      <p className="text-sm text-gray-500">Harvest Date</p>
-                      <p className="font-medium text-gray-800">{result.harvestDate}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start">
-                    <MapPin size={20} className="text-green-600 mr-3 mt-1" />
-                    <div>
-                      <p className="text-sm text-gray-500">Farm Location</p>
-                      <p className="font-medium text-gray-800">{result.farmLocation}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="space-y-4">
-                  <div className="flex items-start">
-                    <Truck size={20} className="text-blue-600 mr-3 mt-1" />
-                    <div>
-                      <p className="text-sm text-gray-500">Quantity</p>
-                      <p className="font-medium text-gray-800">{result.quantity}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start">
-                    <CheckCircle size={20} className="text-blue-600 mr-3 mt-1" />
-                    <div>
-                      <p className="text-sm text-gray-500">Certifications</p>
-                      <p className="font-medium text-gray-800">{result.certifications.join(', ')}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start">
-                    <User size={20} className="text-blue-600 mr-3 mt-1" />
-                    <div>
-                      <p className="text-sm text-gray-500">Last Updated</p>
-                      <p className="font-medium text-gray-800">{new Date(result.lastUpdated * 1000).toLocaleString()}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-              <h2 className="text-xl font-semibold text-gray-800 mb-6">Journey Timeline</h2>
-              
-              <div className="relative">
-                {/* Vertical line */}
-                <div className="absolute top-0 left-[19px] bottom-0 w-0.5 bg-gray-200"></div>
-                
-                <div className="space-y-8">
-                  {result.statusHistory.map((item: any, index: number) => (
-                    <motion.div 
-                      key={index}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.1 * index }}
-                      className="flex items-start"
+            <motion.div
+              className="bg-white rounded-xl shadow-xl p-8 border border-gray-100"
+              initial={{ y: 20 }}
+              animate={{ y: 0 }}
+              transition={{ delay: 0.3, duration: 0.5 }}
+            >
+              <motion.h1
+                className="text-4xl font-bold text-gray-800 mb-2"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3, duration: 0.8 }}
+              >
+                <span className="text-green-600">FarmFlow:</span> Produce Status
+              </motion.h1>
+              <motion.p
+                className="text-lg text-gray-600 mb-6"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5, duration: 0.8 }}
+              >
+                Enter a produce ID to track its journey through the supply chain.
+              </motion.p>
+
+              <form onSubmit={fetchProduceStatus} className="space-y-5">
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6, duration: 0.5 }}
+                >
+                  <label htmlFor="produceId" className="block text-sm font-medium text-gray-700">
+                    Produce ID
+                  </label>
+                  <div className="flex items-center mt-1 space-x-2">
+                    <input
+                      id="produceId"
+                      type="text"
+                      value={produceId}
+                      onChange={(e) => setProduceId(e.target.value)}
+                      className="flex-1 bg-white border border-gray-300 rounded-lg p-3 text-gray-700 focus:ring-2 focus:ring-green-500"
+                      required
+                      disabled={isFetching}
+                      placeholder="Enter produce ID (e.g., PROD-123)"
+                    />
+                    <motion.button
+                      type="submit"
+                      className={`whitespace-nowrap px-4 py-3 rounded-lg text-sm font-medium ${
+                        isFetching
+                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                          : "bg-green-600 hover:bg-green-700 text-white"
+                      }`}
+                      disabled={isFetching}
+                      whileHover={!isFetching ? { scale: 1.02 } : {}}
+                      whileTap={!isFetching ? { scale: 0.98 } : {}}
                     >
-                      <div className={`rounded-full w-10 h-10 flex items-center justify-center mr-4 ${
-                        index === result.statusHistory.length - 1 
-                          ? 'bg-green-500 text-white'
-                          : 'bg-blue-100 text-blue-500'
-                      }`}>
-                        {index === 0 && <Package size={16} />}
-                        {index === 1 && <CheckCircle size={16} />}
-                        {index === 2 && <Truck size={16} />}
-                        {index === 3 && <User size={16} />}
-                        {index === 4 && <CheckCircle size={16} />}
-                      </div>
-                      
-                      <div className="bg-gray-50 rounded-lg p-4 flex-1">
-                        <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-2">
-                          <h3 className="font-medium text-gray-800">{item.status}</h3>
-                          <p className="text-sm text-gray-500">{item.date}</p>
-                        </div>
-                        <div className="flex flex-col sm:flex-row text-gray-600 text-sm">
-                          <div className="flex items-center sm:mr-6">
-                            <MapPin size={14} className="mr-1" />
-                            {item.location}
-                          </div>
-                          <div className="flex items-center mt-1 sm:mt-0">
-                            <User size={14} className="mr-1" />
-                            {item.owner}
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            </div>
+                      {isFetching ? "Fetching..." : <><Search className="w-4 h-4 inline mr-1" /> Track</>}
+                    </motion.button>
+                  </div>
+                </motion.div>
+              </form>
+
+              {produceData && (
+                <motion.div
+                  className="mt-6 bg-green-50 border-l-4 border-green-500 p-4 rounded"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  <h3 className="text-lg font-semibold text-green-700 mb-2 flex items-center">
+                    {getStatusIcon(produceData.status)}
+                    <span className="ml-2">Current Status: {produceData.status}</span>
+                  </h3>
+                  <div className="space-y-2 text-gray-700">
+                    <p><strong>Produce ID:</strong> {produceData.id}</p>
+                    <p><strong>Farmer:</strong> {produceData.farmer.slice(0, 8)}...{produceData.farmer.slice(-8)}</p>
+                    {produceData.transporter && (
+                      <p><strong>Transporter:</strong> {produceData.transporter.slice(0, 8)}...{produceData.transporter.slice(-8)}</p>
+                    )}
+                    {produceData.retailer && (
+                      <p><strong>Retailer:</strong> {produceData.retailer.slice(0, 8)}...{produceData.retailer.slice(-8)}</p>
+                    )}
+                    <p><strong>Last Updated:</strong> {produceData.timestamp}</p>
+                    <p><strong>Crop Type:</strong> {produceData.details.cropType}</p>
+                    <p><strong>Quantity:</strong> {produceData.details.quantity} {produceData.details.unit}</p>
+                  </div>
+                </motion.div>
+              )}
+            </motion.div>
           </motion.div>
-        )}
-      </div>
-    </motion.div>
+
+          {/* Visual Side */}
+          <motion.div
+            className="w-full lg:w-1/2 relative"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8 }}
+          >
+            <motion.div
+              className="rounded-xl overflow-hidden shadow-2xl relative"
+              initial={{ y: 20 }}
+              animate={{ y: 0 }}
+              transition={{ repeat: Infinity, repeatType: "reverse", duration: 3 }}
+            >
+              <div className="h-96 bg-gradient-to-br from-green-100 to-blue-100 p-6 relative">
+                <motion.div
+                  className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-32 h-32 rounded-full bg-white flex items-center justify-center shadow-xl z-20"
+                  initial={{ scale: 0.8 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.8, duration: 0.5 }}
+                >
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                    className="absolute inset-0 rounded-full border-4 border-dashed border-green-200 opacity-70"
+                  />
+                  <motion.div className="w-20 h-20">
+                    {produceData ? getStatusIcon(produceData.status) : <Search className="w-20 h-20 text-gray-400" />}
+                  </motion.div>
+                </motion.div>
+                <motion.div
+                  className="absolute top-4 left-4 bg-green-600 text-white p-2 rounded-lg shadow-lg z-10 flex items-center space-x-2"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 1.8, duration: 0.6 }}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  <span className="text-sm font-medium">Blockchain Verified</span>
+                </motion.div>
+              </div>
+            </motion.div>
+          </motion.div>
+        </div>
+      </motion.div>
+    </section>
   );
 };
 
-export default Track;
+export default ProduceStatusPage;

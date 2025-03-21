@@ -32,7 +32,7 @@ import { getAccount } from "@solana/spl-token";
 
 // Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyAkWXzHbTKWj4JTXemMBEiPdLDGmo1difs",
+  apiKey: process.env.API_KEY,
   authDomain: "hackprojec-77a77.firebaseapp.com",
   projectId: "hackprojec-77a77",
   storageBucket: "hackprojec-77a77.appspot.com",
