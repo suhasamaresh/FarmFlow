@@ -1,5 +1,5 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React from "react";
+import { motion } from "framer-motion";
 
 export const HowItWorks = () => {
   const steps = [
@@ -11,38 +11,48 @@ export const HowItWorks = () => {
         <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
         </svg>
-      )
+      ),
     },
     {
       id: 2,
+      title: "Retailers Fund Vault",
+      description: "Deposit fees for farmer and transporter into smart contract",
+      icon: (
+        <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+        </svg>
+      ),
+    },
+    {
+      id: 3,
       title: "Transporters Track",
       description: "Monitor location & conditions in real-time",
       icon: (
         <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
         </svg>
-      )
+      ),
     },
     {
-      id: 3,
+      id: 4,
       title: "Retailers Verify",
       description: "Confirm quality & delivery authenticity",
       icon: (
         <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
         </svg>
-      )
+      ),
     },
     {
-      id: 4,
+      id: 5,
       title: "Automated Payments",
       description: "Secure & fair transactions via smart contracts",
       icon: (
         <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
         </svg>
-      )
-    }
+      ),
+    },
   ];
 
   const containerVariants = {
@@ -51,16 +61,16 @@ export const HowItWorks = () => {
       opacity: 1,
       transition: { 
         staggerChildren: 0.2,
-        delayChildren: 0.3
-      }
-    }
+        delayChildren: 0.3,
+      },
+    },
   };
 
   const itemVariants = {
     hidden: { 
       y: 30, 
       opacity: 0,
-      scale: 0.95
+      scale: 0.95,
     },
     visible: { 
       y: 0, 
@@ -68,9 +78,9 @@ export const HowItWorks = () => {
       scale: 1,
       transition: { 
         duration: 0.6,
-        ease: [0.43, 0.13, 0.23, 0.96] // Custom ease for smooth bounce
-      }
-    }
+        ease: [0.43, 0.13, 0.23, 0.96], // Custom ease for smooth bounce
+      },
+    },
   };
 
   const iconVariants = {
@@ -82,9 +92,9 @@ export const HowItWorks = () => {
         duration: 0.5,
         type: "spring",
         stiffness: 200,
-        damping: 15
-      }
-    }
+        damping: 15,
+      },
+    },
   };
 
   return (
@@ -113,7 +123,7 @@ export const HowItWorks = () => {
         </motion.div>
 
         <motion.div 
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8"
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
@@ -127,7 +137,7 @@ export const HowItWorks = () => {
               whileHover={{ 
                 y: -8,
                 boxShadow: "0 15px 30px rgba(0,0,0,0.1)",
-                transition: { duration: 0.2 }
+                transition: { duration: 0.2 },
               }}
             >
               <motion.div 
@@ -150,7 +160,7 @@ export const HowItWorks = () => {
                   type: "spring",
                   stiffness: 260,
                   damping: 20,
-                  delay: 0.2
+                  delay: 0.2,
                 }}
               >
                 {step.id}

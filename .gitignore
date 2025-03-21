@@ -2,8 +2,6 @@
 
 # dependencies
 /target
-/types
-/idl.json
 /node_modules
 /.pnp
 .pnp.*

@@ -28,6 +28,7 @@ import type { DecentralizedAgSupply } from "../../types/decentralized_ag_supply"
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { initializeApp } from "firebase/app";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { getAccount } from "@solana/spl-token";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -68,6 +69,8 @@ const LogHarvest = () => {
     qrCodeUri: "",
     location: { lat: 0, lng: 0 },
     imageUrls: [] as string[],
+    farmerPrice: "", // Added: Farmer's expected price
+    transporterFee: "", // Added: Transporter's fee
   });
 
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
@@ -172,6 +175,13 @@ const LogHarvest = () => {
         setIsLoading(false);
         return;
       }
+
+      const [vaultPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from("vault")],
+        programId
+      );
+      const vaultAccount = await connection.getAccountInfo(vaultPDA);
+      console.log("Token Mint:", vaultAccount);
 
       try {
         const participantAccount = await (
@@ -305,6 +315,11 @@ const LogHarvest = () => {
       return;
     }
 
+    if (!formData.farmerPrice || !formData.transporterFee) {
+      toast.error("Please enter both farmer price and transporter fee");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const uniqueId = `${publicKey?.toString().slice(0, 8)}-${
@@ -329,7 +344,7 @@ const LogHarvest = () => {
         ],
         programId
       );
-      console.log("produce PDA:" , producePDA);
+      console.log("produce PDA:", producePDA);
 
       const [participantPDA] = PublicKey.findProgramAddressSync(
         [Buffer.from("participant"), anchorWallet.publicKey.toBuffer()],
@@ -343,7 +358,9 @@ const LogHarvest = () => {
           new BN(formData.quantity),
           new BN(new Date(formData.harvestDate).getTime() / 1000),
           new BN(formData.quality),
-          formData.qrCodeUri
+          formData.qrCodeUri,
+          new BN(formData.farmerPrice), // Added: Farmer price
+          new BN(formData.transporterFee) // Added: Transporter fee
         )
         .accounts({
           produce: producePDA,
@@ -472,22 +489,22 @@ const LogHarvest = () => {
                     className="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 text-gray-700"
                     placeholder="Click button to generate"
                   />
-                    <button
+                  <button
                     type="button"
                     onClick={generateUniqueProduceId}
                     disabled={isLoading}
                     className={`py-2 px-3 rounded-lg flex items-center justify-center transition-colors ${
                       isLoading
-                      ? "bg-gray-300 cursor-not-allowed"
-                      : "bg-green-600 hover:bg-green-700 text-white"
+                        ? "bg-gray-300 cursor-not-allowed"
+                        : "bg-green-600 hover:bg-green-700 text-white"
                     }`}
-                    >
+                  >
                     {isLoading ? (
                       <Loader2 className="animate-spin h-4 w-5" />
                     ) : (
                       "Generate Unique ID"
                     )}
-                    </button>
+                  </button>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
                   Automatically generated unique ID
@@ -570,6 +587,60 @@ const LogHarvest = () => {
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   required
                 />
+              </div>
+            </motion.div>
+
+            {/* Added: Farmer Price and Transporter Fee Inputs */}
+            <motion.div
+              variants={fieldVariants}
+              className="grid grid-cols-1 md:grid-cols-2 gap-4"
+            >
+              <div>
+                <label
+                  className="block text-gray-700 font-medium mb-2"
+                  htmlFor="farmerPrice"
+                >
+                  <Scale size={16} className="inline mr-2" />
+                  Farmer Price (Tokens)
+                </label>
+                <input
+                  type="number"
+                  id="farmerPrice"
+                  name="farmerPrice"
+                  value={formData.farmerPrice}
+                  onChange={handleInputChange}
+                  placeholder="Enter price in tokens"
+                  min="1"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  The expected payment for this harvest
+                </p>
+              </div>
+
+              <div>
+                <label
+                  className="block text-gray-700 font-medium mb-2"
+                  htmlFor="transporterFee"
+                >
+                  <Scale size={16} className="inline mr-2" />
+                  Transporter Fee (Tokens)
+                </label>
+                <input
+                  type="number"
+                  id="transporterFee"
+                  name="transporterFee"
+                  value={formData.transporterFee}
+                  onChange={handleInputChange}
+                  placeholder="Enter fee in tokens"
+                  min="1"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  The fee for transporting this harvest
+                </p>
               </div>
             </motion.div>
 

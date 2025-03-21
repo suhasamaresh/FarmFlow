@@ -3,26 +3,36 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useAnchorWallet, useConnection } from "@solana/wallet-adapter-react";
-import { PublicKey, SystemProgram } from "@solana/web3.js";
+import { PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { AnchorProvider, BN, Program } from "@coral-xyz/anchor";
 import * as rawIdl from "../../idl.json";
 import type { DecentralizedAgSupply } from "../../types/decentralized_ag_supply";
 import { Package, CheckCircle, Clock } from "lucide-react";
 import Link from "next/link";
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import {
+  TOKEN_PROGRAM_ID,
+  getAssociatedTokenAddress,
+  createAssociatedTokenAccountInstruction,
+  getAccount,
+  createSyncNativeInstruction,
+} from "@solana/spl-token";
 
 const programId = new PublicKey(rawIdl.address);
+const MINT_ADDRESS = new PublicKey("So11111111111111111111111111111111111111112"); // Wrapped SOL mint
 
 const RetailerDashboard = () => {
   const { connection } = useConnection();
   const anchorWallet = useAnchorWallet();
   const [produceId, setProduceId] = useState("");
+  const [transporterPubkey, setTransporterPubkey] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [userRole, setUserRole] = useState<null | string>(null);
   const [isCheckingRole, setIsCheckingRole] = useState(true);
   const [produceStatus, setProduceStatus] = useState<{
     exists: boolean;
     status?: string;
+    farmer?: PublicKey;
+    farmerATA?: PublicKey;
   } | null>(null);
 
   useEffect(() => {
@@ -45,19 +55,14 @@ const RetailerDashboard = () => {
     setIsCheckingRole(true);
     try {
       const provider = new AnchorProvider(connection, anchorWallet, {});
-      const program = new Program(
-        rawIdl as unknown as DecentralizedAgSupply,
-        provider
-      );
+      const program = new Program(rawIdl as unknown as DecentralizedAgSupply, provider);
 
       const [participantPDA] = PublicKey.findProgramAddressSync(
         [Buffer.from("participant"), anchorWallet.publicKey.toBuffer()],
         programId
       );
 
-      const participantAccount = await (
-        program.account as any
-      ).participant.fetch(participantPDA);
+      const participantAccount = await (program.account as any).participant.fetch(participantPDA);
 
       if (participantAccount.role.retailer) {
         setUserRole("Retailer");
@@ -77,10 +82,7 @@ const RetailerDashboard = () => {
     setIsLoading(true);
     try {
       const provider = new AnchorProvider(connection, anchorWallet, {});
-      const program = new Program(
-        rawIdl as unknown as DecentralizedAgSupply,
-        provider
-      );
+      const program = new Program(rawIdl as unknown as DecentralizedAgSupply, provider);
 
       const produceIdNum = parseInt(produceId);
       if (isNaN(produceIdNum)) {
@@ -100,7 +102,16 @@ const RetailerDashboard = () => {
         const status = typeof produceAccount.status === "object"
           ? Object.keys(produceAccount.status)[0]
           : String(produceAccount.status);
-        setProduceStatus({ exists: true, status });
+        const farmer = produceAccount.farmer;
+
+        const farmerATA = await getAssociatedTokenAddress(MINT_ADDRESS, farmer);
+
+        setProduceStatus({
+          exists: true,
+          status,
+          farmer,
+          farmerATA,
+        });
       } else {
         setProduceStatus({ exists: false });
       }
@@ -113,20 +124,26 @@ const RetailerDashboard = () => {
   };
 
   const handleConfirmDelivery = async () => {
-    if (!anchorWallet || !produceId) return;
+    if (!anchorWallet || !produceId || !transporterPubkey || !produceStatus?.farmer || !produceStatus?.farmerATA) return;
 
     setIsLoading(true);
     try {
       const provider = new AnchorProvider(connection, anchorWallet, {});
-      const program = new Program(
-        rawIdl as unknown as DecentralizedAgSupply,
-        provider
-      );
+      const program = new Program(rawIdl as unknown as DecentralizedAgSupply, provider);
 
       const produceIdNum = parseInt(produceId);
       if (isNaN(produceIdNum)) {
         throw new Error("Invalid Produce ID");
       }
+
+      let transporterPubkeyObj: PublicKey;
+      try {
+        transporterPubkeyObj = new PublicKey(transporterPubkey);
+      } catch (err) {
+        throw new Error("Invalid transporter public key");
+      }
+      const transporterPaymentAccount = await getAssociatedTokenAddress(MINT_ADDRESS, transporterPubkeyObj);
+      const farmerPaymentAccount = produceStatus.farmerATA;
 
       const produceIdBN = new BN(produceIdNum);
       const [producePDA] = PublicKey.findProgramAddressSync(
@@ -144,38 +161,190 @@ const RetailerDashboard = () => {
         programId
       );
 
-      // Note: These accounts would need to be properly initialized in your system
-      // For this example, we're assuming they exist and using dummy Pubkeys
-      const farmerPaymentAccount = new PublicKey("11111111111111111111111111111111"); // Replace with actual farmer account
-      const transporterPaymentAccount = new PublicKey("22222222222222222222222222222222"); // Replace with actual transporter account
+      const [paymentVaultPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from("vault_token")],
+        programId
+      );
 
-      await program.methods
+      const retailerTokenAccount = await getAssociatedTokenAddress(MINT_ADDRESS, anchorWallet.publicKey);
+
+      // Check SOL balance for fees and account creation
+      const solBalance = await connection.getBalance(anchorWallet.publicKey);
+      console.log("Retailer SOL Balance:", solBalance / LAMPORTS_PER_SOL, "SOL");
+      const minSolRequired = 0.01 * LAMPORTS_PER_SOL; // ~0.01 SOL for fees + ATA rent
+      if (solBalance < minSolRequired) {
+        throw new Error(
+          `Insufficient SOL for fees and account creation. Required: ${minSolRequired / LAMPORTS_PER_SOL} SOL, Available: ${solBalance / LAMPORTS_PER_SOL} SOL`
+        );
+      }
+
+      const transaction = new Transaction();
+
+      // Check payment vault balance
+      const paymentVaultInfo = await connection.getAccountInfo(paymentVaultPDA);
+      if (!paymentVaultInfo) {
+        throw new Error("Payment vault not initialized.");
+      }
+      const vaultBalance = await getAccount(connection, paymentVaultPDA);
+      console.log("Payment Vault WSOL Balance Before:", Number(vaultBalance.amount) / LAMPORTS_PER_SOL, "WSOL");
+
+      // Fetch produce data and calculate required amount
+      const produceAccount = await (program.account as any).produce.fetch(producePDA);
+      const requiredAmount = Number(produceAccount.farmerPrice) + Number(produceAccount.transporterFee);
+      console.log("Farmer Price:", Number(produceAccount.farmerPrice) / LAMPORTS_PER_SOL, "WSOL");
+      console.log("Transporter Fee:", Number(produceAccount.transporterFee) / LAMPORTS_PER_SOL, "WSOL");
+      console.log("Required Amount for Delivery:", requiredAmount / LAMPORTS_PER_SOL, "WSOL");
+
+      // Fund vault if necessary
+      if (Number(vaultBalance.amount) < requiredAmount) {
+        console.log("Vault balance insufficient, funding required.");
+        let retailerTokenAccountInfo = await connection.getAccountInfo(retailerTokenAccount);
+        if (!retailerTokenAccountInfo) {
+          const createRetailerATAIx = createAssociatedTokenAccountInstruction(
+            anchorWallet.publicKey,
+            retailerTokenAccount,
+            anchorWallet.publicKey,
+            MINT_ADDRESS
+          );
+          transaction.add(createRetailerATAIx);
+          console.log("Added instruction to create retailer ATA.");
+        }
+
+        const retailerWsolBalance = retailerTokenAccountInfo
+          ? Number((await getAccount(connection, retailerTokenAccount)).amount)
+          : 0;
+        console.log("Retailer WSOL Balance Before:", retailerWsolBalance / LAMPORTS_PER_SOL, "WSOL");
+
+        if (retailerWsolBalance < requiredAmount) {
+          const requiredSolForWsol = requiredAmount - retailerWsolBalance;
+          const totalRequiredSol = requiredSolForWsol + minSolRequired; // WSOL + fees
+          if (solBalance < totalRequiredSol) {
+            throw new Error(
+              `Insufficient SOL for WSOL conversion and fees. Required: ${totalRequiredSol / LAMPORTS_PER_SOL} SOL, Available: ${solBalance / LAMPORTS_PER_SOL} SOL`
+            );
+          }
+
+          // Wrap SOL into WSOL
+          transaction.add(
+            SystemProgram.transfer({
+              fromPubkey: anchorWallet.publicKey,
+              toPubkey: retailerTokenAccount,
+              lamports: requiredSolForWsol,
+            }),
+            createSyncNativeInstruction(retailerTokenAccount)
+          );
+          console.log("Added SOL-to-WSOL conversion instructions for", requiredSolForWsol / LAMPORTS_PER_SOL, "SOL");
+        }
+
+        // Fund the vault
+        const fundVaultIx = await program.methods
+          .fundVault(new BN(requiredAmount))
+          .accounts({
+            produce: producePDA,
+            retailer: anchorWallet.publicKey,
+            retailerTokenAccount: retailerTokenAccount,
+            paymentVault: paymentVaultPDA,
+            tokenProgram: TOKEN_PROGRAM_ID,
+          })
+          .instruction();
+        transaction.add(fundVaultIx);
+        console.log("Added fundVault instruction with amount:", requiredAmount / LAMPORTS_PER_SOL, "WSOL");
+      } else {
+        console.log("Vault balance sufficient, skipping funding.");
+      }
+
+      // Create farmer and transporter ATAs if needed
+      const farmerATAInfo = await connection.getAccountInfo(farmerPaymentAccount);
+      if (!farmerATAInfo) {
+        const createFarmerATAIx = createAssociatedTokenAccountInstruction(
+          anchorWallet.publicKey,
+          farmerPaymentAccount,
+          produceStatus.farmer,
+          MINT_ADDRESS
+        );
+        transaction.add(createFarmerATAIx);
+        console.log("Added instruction to create farmer ATA.");
+      }
+
+      const transporterATAInfo = await connection.getAccountInfo(transporterPaymentAccount);
+      if (!transporterATAInfo) {
+        const createTransporterATAIx = createAssociatedTokenAccountInstruction(
+          anchorWallet.publicKey,
+          transporterPaymentAccount,
+          transporterPubkeyObj,
+          MINT_ADDRESS
+        );
+        transaction.add(createTransporterATAIx);
+        console.log("Added instruction to create transporter ATA.");
+      }
+
+      // Add confirmDelivery instruction
+      const confirmDeliveryIx = await program.methods
         .confirmDelivery()
         .accounts({
           produce: producePDA,
           retailerAccount: retailerPDA,
           retailer: anchorWallet.publicKey,
-          paymentVault: vaultPDA,
+          vault: vaultPDA,
+          paymentVault: paymentVaultPDA,
           farmerPaymentAccount,
           transporterPaymentAccount,
           tokenProgram: TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
         })
-        .rpc();
+        .instruction();
+
+      transaction.add(confirmDeliveryIx);
+      console.log("Added ConfirmDelivery instruction.");
+
+      // Estimate transaction fee
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = anchorWallet.publicKey;
+      const feeEstimate = await connection.getFeeForMessage(transaction.compileMessage());
+      if (feeEstimate.value !== null) {
+        console.log("Estimated Transaction Fee:", feeEstimate.value / LAMPORTS_PER_SOL, "SOL");
+      } else {
+        console.warn("Unable to estimate transaction fee as 'feeEstimate.value' is null.");
+      }
+
+      console.log("Total Instructions in Transaction:", transaction.instructions.length);
+      const signedTx = await anchorWallet.signTransaction(transaction);
+      const txId = await connection.sendRawTransaction(signedTx.serialize(), {
+        skipPreflight: false, // Ensure simulation runs
+      });
+
+      console.log("Transaction ID:", txId);
+      const confirmation = await connection.confirmTransaction({
+        signature: txId,
+        blockhash,
+        lastValidBlockHeight,
+      });
+
+      if (confirmation.value.err) {
+        throw new Error("Transaction confirmation failed");
+      }
+
+      // Log final vault balance
+      const updatedVaultBalance = await getAccount(connection, paymentVaultPDA);
+      console.log("Payment Vault WSOL Balance After:", Number(updatedVaultBalance.amount) / LAMPORTS_PER_SOL, "WSOL");
 
       setProduceId("");
-      alert("Delivery confirmed successfully!");
-    } catch (err) {
+      setTransporterPubkey("");
+      alert("Delivery confirmed successfully! Transaction ID: " + txId);
+    } catch (err: any) {
       console.error("Error confirming delivery:", err);
-      alert(
-        `Error confirming delivery: ${
-          err instanceof Error ? err.message : String(err)
-        }`
-      );
+      let errorMessage = err.message || String(err);
+      if (err.logs) {
+        console.error("Transaction logs:", err.logs);
+        errorMessage += "\nLogs: " + err.logs.join("\n");
+      }
+      alert(`Error confirming delivery: ${errorMessage}`);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
+  // Rest of the component (UI rendering) remains unchanged
   if (isCheckingRole) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gradient-to-r from-green-50 to-blue-50">
@@ -233,17 +402,47 @@ const RetailerDashboard = () => {
 
           <div className="space-y-5">
             <div className="space-y-4">
-              <label className="block text-sm font-medium text-gray-700">
-                Produce ID
-              </label>
-              <input
-                type="text"
-                value={produceId}
-                onChange={(e) => setProduceId(e.target.value)}
-                className="mt-1 block w-full bg-white border border-gray-300 rounded-lg p-3 text-gray-700 focus:ring-2 focus:ring-green-500"
-                placeholder="Enter Produce ID to confirm delivery"
-                disabled={isLoading}
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Produce ID
+                </label>
+                <input
+                  type="text"
+                  value={produceId}
+                  onChange={(e) => setProduceId(e.target.value)}
+                  className="mt-1 block w-full bg-white border border-gray-300 rounded-lg p-3 text-gray-700 focus:ring-2 focus:ring-green-500"
+                  placeholder="Enter Produce ID"
+                  disabled={isLoading}
+                />
+              </div>
+
+              {produceStatus?.exists && produceStatus.farmerATA && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Farmer Payment Account (Auto-detected ATA)
+                  </label>
+                  <input
+                    type="text"
+                    value={produceStatus.farmerATA.toString()}
+                    className="mt-1 block w-full bg-gray-100 border border-gray-300 rounded-lg p-3 text-gray-700"
+                    disabled
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Transporter Public Key
+                </label>
+                <input
+                  type="text"
+                  value={transporterPubkey}
+                  onChange={(e) => setTransporterPubkey(e.target.value)}
+                  className="mt-1 block w-full bg-white border border-gray-300 rounded-lg p-3 text-gray-700 focus:ring-2 focus:ring-green-500"
+                  placeholder="Enter Transporter's Public Key"
+                  disabled={isLoading}
+                />
+              </div>
 
               {produceId && (
                 isLoading ? (
@@ -257,7 +456,7 @@ const RetailerDashboard = () => {
                       <motion.button
                         onClick={handleConfirmDelivery}
                         className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition shadow-lg flex items-center justify-center"
-                        disabled={isLoading}
+                        disabled={isLoading || !transporterPubkey}
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                       >
@@ -285,9 +484,7 @@ const RetailerDashboard = () => {
 
             <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded">
               <p className="text-green-700">
-                Enter a Produce ID to verify its status. You can only confirm
-                delivery for produce in "InTransit" status. Upon confirmation,
-                payment processing will be triggered.
+                Enter the Produce ID and transporter's public key. The farmer's and transporter's payment accounts (ATAs) will be automatically created if needed. Upon confirmation, delivery is marked and payments are processed automatically on-chain.
               </p>
             </div>
           </div>
