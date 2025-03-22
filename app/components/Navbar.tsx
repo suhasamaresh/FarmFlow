@@ -47,7 +47,6 @@ export default function Navbar() {
   const navItems = [
     { name: "Dashboard", path: "/dashboard?source=button", index: 1 },
     { name: "Track Produce", path: "/track?source=button", index: 2 },
-    { name: "Payments & Staking", path: "/payments-staking?source=button", index: 3 },
     { name: "Disputes", path: "/disputes?source=button", index: 4 },
     { name: "Governance", path: "/governance?source=button", index: 5 },
     { name: "About & FAQs", path: "/about?source=button", index: 6 },
