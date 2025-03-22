@@ -374,7 +374,7 @@ const FundVaultPage = () => {
     >
       <div className="max-w-3xl mx-auto">
         <div className="mb-6">
-          <Link href="/dashboard">
+          <Link href="/dashboard?source=button">
             <button className="flex items-center text-green-700 hover:text-green-800 transition-colors">
               <ArrowLeft size={18} className="mr-2" />
               Back to Dashboard
