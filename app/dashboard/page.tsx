@@ -139,7 +139,6 @@ const Dashboard = () => {
       case "Farmer":
         return [
           { name: "Log Harvest", icon: <Leaf size={24} />, link: "/logharvests", color: "from-green-500 to-green-600" },
-          { name: "Payments", icon: <TrendingUp size={24} />, link: "/payments", color: "from-blue-500 to-blue-600" },
           { name: "Claim from ATA", icon: <DollarSign size={24} />, link: "/claim?source=button", color: "from-teal-500 to-teal-600" },
           { name: "Governance", icon: <Users size={24} />, link: "/governance", color: "from-purple-500 to-purple-600" },
           { name: "Disputes", icon: <AlertTriangle size={24} />, link: "/disputes", color: "from-amber-500 to-amber-600" },
@@ -148,13 +147,11 @@ const Dashboard = () => {
         return [
           { name: "Fund Vault", icon: <ShoppingBag size={24} />, link: "/fundvault", color: "from-purple-500 to-purple-600" },
           { name: "Confirm Delivery", icon: <Truck size={24} />, link: "/confirmdelivery", color: "from-green-500 to-green-600" },
-          { name: "Payments", icon: <TrendingUp size={24} />, link: "/payments", color: "from-blue-500 to-blue-600" },
           { name: "Disputes", icon: <AlertTriangle size={24} />, link: "/disputes", color: "from-amber-500 to-amber-600" },
         ];
       case "Transporter":
         return [
           { name: "Record Transport", icon: <Truck size={24} />, link: "/transport", color: "from-blue-500 to-blue-600" },
-          { name: "Payments", icon: <TrendingUp size={24} />, link: "/payments", color: "from-green-500 to-green-600" },
           { name: "Claim from ATA", icon: <DollarSign size={24} />, link: "/claim?source=button", color: "from-teal-500 to-teal-600" },
           { name: "Governance", icon: <Users size={24} />, link: "/governance", color: "from-purple-500 to-purple-600" },
           { name: "Disputes", icon: <AlertTriangle size={24} />, link: "/disputes", color: "from-amber-500 to-amber-600" },
@@ -162,7 +159,6 @@ const Dashboard = () => {
       default:
         return [
           { name: "Track Produce", icon: <Truck size={24} />, link: "/track", color: "from-green-500 to-green-600" },
-          { name: "Payments", icon: <TrendingUp size={24} />, link: "/payments", color: "from-blue-500 to-blue-600" },
           { name: "Governance", icon: <Users size={24} />, link: "/governance", color: "from-purple-500 to-purple-600" },
           { name: "Disputes", icon: <AlertTriangle size={24} />, link: "/disputes", color: "from-amber-500 to-amber-600" },
         ];
