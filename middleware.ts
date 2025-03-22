@@ -8,7 +8,7 @@ export function middleware(request: NextRequest) {
   const protectedRoutes = [
     "/dashboard",
     "/produce-status",
-    "/register", // Add any other routes you want to protect
+    "/register", 
     "/transport",
     "/track",
     "/confirmdelivery",
@@ -16,7 +16,8 @@ export function middleware(request: NextRequest) {
     "/fundvault",
     "/logharvests",
     "/verifyquality",
-    "/governance"
+    "/governance",
+    "/claim"
   ];
 
   // Check if the current route is protected
