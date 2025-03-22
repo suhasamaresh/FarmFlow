@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { useAnchorWallet, useConnection } from "@solana/wallet-adapter-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { BarChart, TrendingUp, Truck, Box, Users, AlertTriangle, Leaf, ShoppingBag } from "lucide-react";
+import { BarChart, TrendingUp, Truck, Box, Users, AlertTriangle, Leaf, ShoppingBag, DollarSign } from "lucide-react";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import * as rawIdl from "../../idl.json";
 import type { DecentralizedAgSupply } from "../../types/decentralized_ag_supply";
@@ -96,7 +96,7 @@ const Dashboard = () => {
         programId
       );
 
-      const participantAccount = await( program.account as any).participant.fetchNullable(participantPDA);
+      const participantAccount = await (program.account as any).participant.fetchNullable(participantPDA);
       if (participantAccount) {
         const roleKey = Object.keys(participantAccount.role)[0];
         const role = roleKey.charAt(0).toUpperCase() + roleKey.slice(1);
@@ -138,8 +138,9 @@ const Dashboard = () => {
     switch (participantData.role) {
       case "Farmer":
         return [
-          { name: "Log Harvest", icon: <Leaf size={24} />, link: "/logharvest", color: "from-green-500 to-green-600" },
+          { name: "Log Harvest", icon: <Leaf size={24} />, link: "/logharvests", color: "from-green-500 to-green-600" },
           { name: "Payments", icon: <TrendingUp size={24} />, link: "/payments", color: "from-blue-500 to-blue-600" },
+          { name: "Claim from ATA", icon: <DollarSign size={24} />, link: "/claim?source=button", color: "from-teal-500 to-teal-600" },
           { name: "Governance", icon: <Users size={24} />, link: "/governance", color: "from-purple-500 to-purple-600" },
           { name: "Disputes", icon: <AlertTriangle size={24} />, link: "/disputes", color: "from-amber-500 to-amber-600" },
         ];
@@ -154,6 +155,7 @@ const Dashboard = () => {
         return [
           { name: "Record Transport", icon: <Truck size={24} />, link: "/transport", color: "from-blue-500 to-blue-600" },
           { name: "Payments", icon: <TrendingUp size={24} />, link: "/payments", color: "from-green-500 to-green-600" },
+          { name: "Claim from ATA", icon: <DollarSign size={24} />, link: "/claim?source=button", color: "from-teal-500 to-teal-600" },
           { name: "Governance", icon: <Users size={24} />, link: "/governance", color: "from-purple-500 to-purple-600" },
           { name: "Disputes", icon: <AlertTriangle size={24} />, link: "/disputes", color: "from-amber-500 to-amber-600" },
         ];
@@ -272,7 +274,7 @@ const Dashboard = () => {
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {getFeatures().map((feature, index) => (
-                    <Link href={`${feature.link}?source=button`} key={index}>
+                    <Link href={feature.link} key={index}>
                       <motion.div
                         variants={cardHoverVariants}
                         whileHover="hover"

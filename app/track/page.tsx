@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useAnchorWallet, useConnection } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
@@ -10,6 +10,23 @@ import Link from "next/link";
 import { ChevronLeft, Search, Leaf, Truck, Store, CheckCircle, AlertTriangle, Package } from "lucide-react";
 import { AnchorProvider, BN, Program, setProvider } from "@coral-xyz/anchor";
 import { toast } from "react-hot-toast";
+import { initializeApp } from "firebase/app";
+import { getStorage, ref, listAll, getDownloadURL } from "firebase/storage";
+
+// Firebase Configuration
+const firebaseConfig = {
+  apiKey: process.env.API_KEY,
+  authDomain: "hackprojec-77a77.firebaseapp.com",
+  projectId: "hackprojec-77a77",
+  storageBucket: "hackprojec-77a77.appspot.com",
+  messagingSenderId: "452533063595",
+  appId: "1:452533063595:web:93ddcc0c36ca5c98c50cee",
+  measurementId: "G-Q8FYL07XMQ",
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const storage = getStorage(app);
 
 const programId = new PublicKey(rawIdl.address);
 
@@ -30,6 +47,7 @@ type ProduceStatus = {
   qrCodeUri: string;
   farmerPrice: number;
   transporterFee: number;
+  images?: string[]; // Added for Firebase image URLs
 };
 
 const ProduceStatusPage = () => {
@@ -89,6 +107,10 @@ const ProduceStatusPage = () => {
         transporterFee: produceAccount.transporterFee.toNumber(),
       };
 
+      // Fetch images from Firebase Storage
+      const images = await fetchImagesFromFirebase(fetchedData.id);
+      fetchedData.images = images;
+
       setProduceData(fetchedData);
       toast.success("Produce status retrieved!");
     } catch (err) {
@@ -97,6 +119,23 @@ const ProduceStatusPage = () => {
       setProduceData(null);
     } finally {
       setIsFetching(false);
+    }
+  };
+
+  // Function to fetch images from Firebase Storage
+  const fetchImagesFromFirebase = async (produceId: string): Promise<string[]> => {
+    try {
+      const storageRef = ref(storage, `produce/${produceId}`);
+      const result = await listAll(storageRef);
+      const imageUrls = await Promise.all(
+        result.items.map(async (itemRef) => {
+          return await getDownloadURL(itemRef);
+        })
+      );
+      return imageUrls;
+    } catch (err) {
+      console.error("Error fetching images from Firebase:", err);
+      return [];
     }
   };
 
@@ -230,6 +269,29 @@ const ProduceStatusPage = () => {
                     <p><strong>Farmer Price:</strong> {produceData.farmerPrice} tokens</p>
                     <p><strong>Transporter Fee:</strong> {produceData.transporterFee} tokens</p>
                   </div>
+
+                  {/* Display Images from Firebase */}
+                  {produceData.images && produceData.images.length > 0 && (
+                    <div className="mt-4">
+                      <h4 className="text-md font-semibold text-gray-800 mb-2">Produce Images</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {produceData.images.map((imageUrl, index) => (
+                          <motion.div
+                            key={index}
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: 0.2 * index, duration: 0.5 }}
+                          >
+                            <img
+                              src={imageUrl}
+                              alt={`Produce ${produceData.id} - Image ${index + 1}`}
+                              className="w-full h-48 object-cover rounded-lg shadow-md"
+                            />
+                          </motion.div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </motion.div>
               )}
             </motion.div>

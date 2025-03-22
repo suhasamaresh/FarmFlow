@@ -615,7 +615,7 @@ const LogHarvest = () => {
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  The expected payment for this harvest
+                  The expected payment for this harvest <span className="text-green-600">(in terms of lamports)</span>
                 </p>
               </div>
 
@@ -639,7 +639,7 @@ const LogHarvest = () => {
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  The fee for transporting this harvest
+                  The fee for transporting this harvest <span className="text-green-600">(in terms of lamports)</span>
                 </p>
               </div>
             </motion.div>
