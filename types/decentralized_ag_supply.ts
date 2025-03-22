@@ -1046,38 +1046,13 @@ export type DecentralizedAgSupply = {
   "errors": [
     {
       "code": 6000,
-      "name": "invalidStatus",
-      "msg": "Invalid produce status for this operation."
+      "name": "nameTooLong",
+      "msg": "Name exceeds maximum length of 32 characters"
     },
     {
       "code": 6001,
-      "name": "unauthorized",
-      "msg": "Unauthorized action."
-    },
-    {
-      "code": 6002,
-      "name": "overflow",
-      "msg": "Arithmetic overflow occurred."
-    },
-    {
-      "code": 6003,
-      "name": "alreadyResolved",
-      "msg": "Dispute already resolved."
-    },
-    {
-      "code": 6004,
-      "name": "alreadyExecuted",
-      "msg": "Proposal already executed."
-    },
-    {
-      "code": 6005,
-      "name": "missingBump",
-      "msg": "Missing bump."
-    },
-    {
-      "code": 6006,
-      "name": "insufficientFunds",
-      "msg": "Not sufficient funds"
+      "name": "contactInfoTooLong",
+      "msg": "Contact info exceeds maximum length of 64 characters"
     }
   ],
   "types": [
@@ -1161,6 +1136,12 @@ export type DecentralizedAgSupply = {
           {
             "name": "createdAt",
             "type": "i64"
+          },
+          {
+            "name": "voters",
+            "type": {
+              "vec": "pubkey"
+            }
           }
         ]
       }

@@ -1040,38 +1040,13 @@
   "errors": [
     {
       "code": 6000,
-      "name": "InvalidStatus",
-      "msg": "Invalid produce status for this operation."
+      "name": "NameTooLong",
+      "msg": "Name exceeds maximum length of 32 characters"
     },
     {
       "code": 6001,
-      "name": "Unauthorized",
-      "msg": "Unauthorized action."
-    },
-    {
-      "code": 6002,
-      "name": "Overflow",
-      "msg": "Arithmetic overflow occurred."
-    },
-    {
-      "code": 6003,
-      "name": "AlreadyResolved",
-      "msg": "Dispute already resolved."
-    },
-    {
-      "code": 6004,
-      "name": "AlreadyExecuted",
-      "msg": "Proposal already executed."
-    },
-    {
-      "code": 6005,
-      "name": "MissingBump",
-      "msg": "Missing bump."
-    },
-    {
-      "code": 6006,
-      "name": "InsufficientFunds",
-      "msg": "Not sufficient funds"
+      "name": "ContactInfoTooLong",
+      "msg": "Contact info exceeds maximum length of 64 characters"
     }
   ],
   "types": [
@@ -1155,6 +1130,12 @@
           {
             "name": "created_at",
             "type": "i64"
+          },
+          {
+            "name": "voters",
+            "type": {
+              "vec": "pubkey"
+            }
           }
         ]
       }

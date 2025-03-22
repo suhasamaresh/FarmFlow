@@ -1,0 +1,37 @@
+name: Build FarmFlow App
+
+# Trigger the workflow on every push to any branch
+on:
+  push:
+    branches:
+      - '*'
+
+# Define the jobs to run
+jobs:
+  build:
+    name: Build and Verify
+    runs-on: ubuntu-latest # Use the latest Ubuntu runner
+
+    steps:
+      # Step 1: Checkout the repository code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Node.js environment
+      - name: Set Up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18' # Specify Node.js version (adjust if needed)
+          cache: 'npm' # Cache npm dependencies for faster builds
+
+      # Step 3: Install dependencies
+      - name: Install Dependencies
+        run: npm install
+
+      # Step 4: Build the Next.js app
+      - name: Build App
+        run: npm run build
+
+      # Step 5: Run tests (optional, uncomment if you have tests)
+      # - name: Run Tests
+      #   run: npm test

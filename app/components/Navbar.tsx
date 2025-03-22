@@ -50,7 +50,7 @@ export default function Navbar() {
     { name: "Payments & Staking", path: "/payments-staking", index: 3 },
     { name: "Disputes", path: "/disputes", index: 4 },
     { name: "Governance", path: "/governance", index: 5 },
-    { name: "About & FAQs", path: "#FAQ", index: 6 },
+    { name: "About & FAQs", path: "/about", index: 6 },
   ];
 
   return (

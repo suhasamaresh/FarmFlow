@@ -7,24 +7,29 @@ import { PublicKey } from "@solana/web3.js";
 import * as rawIdl from "../../idl.json";
 import type { DecentralizedAgSupply } from "../../types/decentralized_ag_supply";
 import Link from "next/link";
-import { ChevronLeft, Search, Leaf, Truck, Store, CheckCircle } from "lucide-react";
-import { AnchorProvider, Program, setProvider } from "@coral-xyz/anchor";
+import { ChevronLeft, Search, Leaf, Truck, Store, CheckCircle, AlertTriangle, Package } from "lucide-react";
+import { AnchorProvider, BN, Program, setProvider } from "@coral-xyz/anchor";
 import { toast } from "react-hot-toast";
 
 const programId = new PublicKey(rawIdl.address);
 
 type ProduceStatus = {
   id: string;
-  status: "Harvested" | "In Transit" | "Delivered" | "Verified";
+  status: "Harvested" | "PickedUp" | "InTransit" | "Delivered" | "QualityVerified" | "Disputed";
   farmer: string;
-  transporter?: string;
-  retailer?: string;
-  timestamp: string;
-  details: {
-    cropType: string;
-    quantity: number;
-    unit: string;
-  };
+  produceType: string;
+  quantity: number;
+  harvestDate: string;
+  quality: number;
+  verifiedQuality: number;
+  lastUpdated: string;
+  transportTemp: number;
+  transportHumidity: number;
+  deliveryConfirmed: boolean;
+  disputeRaised: boolean;
+  qrCodeUri: string;
+  farmerPrice: number;
+  transporterFee: number;
 };
 
 const ProduceStatusPage = () => {
@@ -51,30 +56,37 @@ const ProduceStatusPage = () => {
       setProvider(provider);
       const program = new Program(rawIdl as unknown as DecentralizedAgSupply, provider);
 
-      // Assuming produce PDA is derived from produceId
+      const produceIdNum = parseInt(produceId.replace("PROD-", ""));
+      if (isNaN(produceIdNum)) {
+        throw new Error("Invalid Produce ID. Use format like PROD-123");
+      }
+      const produceIdBN = new BN(produceIdNum);
       const [producePDA] = PublicKey.findProgramAddressSync(
-        [Buffer.from("produce"), Buffer.from(produceId)],
+        [Buffer.from("produce"), produceIdBN.toArrayLike(Buffer, "le", 8)],
         programId
       );
-
       const produceAccount = await (program.account as any).produce.fetch(producePDA);
       if (!produceAccount) {
         throw new Error("Produce not found");
       }
 
-      // Mocked data structure - adjust based on your actual IDL
       const fetchedData: ProduceStatus = {
-        id: produceId,
-        status: produceAccount.status, // e.g., "Harvested", "In Transit", etc.
+        id: `PROD-${produceAccount.produceId.toString()}`,
+        status: Object.keys(produceAccount.status)[0] as ProduceStatus["status"],
         farmer: produceAccount.farmer.toBase58(),
-        transporter: produceAccount.transporter?.toBase58() || undefined,
-        retailer: produceAccount.retailer?.toBase58() || undefined,
-        timestamp: new Date(produceAccount.timestamp.toNumber() * 1000).toLocaleString(),
-        details: {
-          cropType: produceAccount.details.cropType,
-          quantity: produceAccount.details.quantity,
-          unit: produceAccount.details.unit,
-        },
+        produceType: produceAccount.produceType,
+        quantity: produceAccount.quantity.toNumber(),
+        harvestDate: new Date(produceAccount.harvestDate.toNumber() * 1000).toLocaleString(),
+        quality: produceAccount.quality,
+        verifiedQuality: produceAccount.verifiedQuality,
+        lastUpdated: new Date(produceAccount.lastUpdated.toNumber() * 1000).toLocaleString(),
+        transportTemp: produceAccount.transportTemp,
+        transportHumidity: produceAccount.transportHumidity,
+        deliveryConfirmed: produceAccount.deliveryConfirmed,
+        disputeRaised: produceAccount.disputeRaised,
+        qrCodeUri: produceAccount.qrCodeUri,
+        farmerPrice: produceAccount.farmerPrice.toNumber(),
+        transporterFee: produceAccount.transporterFee.toNumber(),
       };
 
       setProduceData(fetchedData);
@@ -91,9 +103,11 @@ const ProduceStatusPage = () => {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "Harvested": return <Leaf className="w-6 h-6 text-green-500" />;
-      case "In Transit": return <Truck className="w-6 h-6 text-blue-500" />;
+      case "PickedUp": return <Package className="w-6 h-6 text-orange-500" />;
+      case "InTransit": return <Truck className="w-6 h-6 text-blue-500" />;
       case "Delivered": return <Store className="w-6 h-6 text-yellow-500" />;
-      case "Verified": return <CheckCircle className="w-6 h-6 text-purple-500" />;
+      case "QualityVerified": return <CheckCircle className="w-6 h-6 text-purple-500" />;
+      case "Disputed": return <AlertTriangle className="w-6 h-6 text-red-500" />;
       default: return <Leaf className="w-6 h-6 text-green-500" />;
     }
   };
@@ -159,7 +173,7 @@ const ProduceStatusPage = () => {
                       className="flex-1 bg-white border border-gray-300 rounded-lg p-3 text-gray-700 focus:ring-2 focus:ring-green-500"
                       required
                       disabled={isFetching}
-                      placeholder="Enter produce ID (e.g., PROD-123)"
+                      placeholder="e.g., PROD-123"
                     />
                     <motion.button
                       type="submit"
@@ -172,7 +186,11 @@ const ProduceStatusPage = () => {
                       whileHover={!isFetching ? { scale: 1.02 } : {}}
                       whileTap={!isFetching ? { scale: 0.98 } : {}}
                     >
-                      {isFetching ? "Fetching..." : <><Search className="w-4 h-4 inline mr-1" /> Track</>}
+                      {isFetching ? "Fetching..." : (
+                        <>
+                          <Search className="w-4 h-4 inline mr-1" /> Track
+                        </>
+                      )}
                     </motion.button>
                   </div>
                 </motion.div>
@@ -192,15 +210,25 @@ const ProduceStatusPage = () => {
                   <div className="space-y-2 text-gray-700">
                     <p><strong>Produce ID:</strong> {produceData.id}</p>
                     <p><strong>Farmer:</strong> {produceData.farmer.slice(0, 8)}...{produceData.farmer.slice(-8)}</p>
-                    {produceData.transporter && (
-                      <p><strong>Transporter:</strong> {produceData.transporter.slice(0, 8)}...{produceData.transporter.slice(-8)}</p>
-                    )}
-                    {produceData.retailer && (
-                      <p><strong>Retailer:</strong> {produceData.retailer.slice(0, 8)}...{produceData.retailer.slice(-8)}</p>
-                    )}
-                    <p><strong>Last Updated:</strong> {produceData.timestamp}</p>
-                    <p><strong>Crop Type:</strong> {produceData.details.cropType}</p>
-                    <p><strong>Quantity:</strong> {produceData.details.quantity} {produceData.details.unit}</p>
+                    <p><strong>Produce Type:</strong> {produceData.produceType}</p>
+                    <p><strong>Quantity:</strong> {produceData.quantity} units</p>
+                    <p><strong>Harvest Date:</strong> {produceData.harvestDate}</p>
+                    <p><strong>Initial Quality:</strong> {produceData.quality}</p>
+                    <p><strong>Verified Quality:</strong> {produceData.verifiedQuality}</p>
+                    <p><strong>Last Updated:</strong> {produceData.lastUpdated}</p>
+                    <p>
+                      <strong>Transport Temp:</strong>{" "}
+                      {produceData.transportTemp === -999 ? "Not Set" : `${produceData.transportTemp}°C`}
+                    </p>
+                    <p>
+                      <strong>Transport Humidity:</strong>{" "}
+                      {produceData.transportHumidity === 255 ? "Not Set" : `${produceData.transportHumidity}%`}
+                    </p>
+                    <p><strong>Delivery Confirmed:</strong> {produceData.deliveryConfirmed ? "Yes" : "No"}</p>
+                    <p><strong>Dispute Raised:</strong> {produceData.disputeRaised ? "Yes" : "No"}</p>
+                    <p><strong>QR Code URI:</strong> <a href={produceData.qrCodeUri} target="_blank" className="text-blue-600">{produceData.qrCodeUri}</a></p>
+                    <p><strong>Farmer Price:</strong> {produceData.farmerPrice} tokens</p>
+                    <p><strong>Transporter Fee:</strong> {produceData.transporterFee} tokens</p>
                   </div>
                 </motion.div>
               )}

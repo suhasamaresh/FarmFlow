@@ -6,18 +6,22 @@ import { useAnchorWallet, useConnection } from "@solana/wallet-adapter-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { BarChart, TrendingUp, Truck, Box, Users, AlertTriangle, Leaf, ShoppingBag } from "lucide-react";
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
 import * as rawIdl from "../../idl.json";
 import type { DecentralizedAgSupply } from "../../types/decentralized_ag_supply";
 import { AnchorProvider, Program, setProvider } from "@coral-xyz/anchor";
+import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 
 const programId = new PublicKey(rawIdl.address);
+// WSOL Token Mint Address
+const TOKEN_MINT = new PublicKey("So11111111111111111111111111111111111111112");
 
 interface ParticipantData {
   role: string | null;
   name: string;
   contactInfo: string;
   owner: string; // PublicKey as string
+  ata?: string; // Associated Token Account (for Farmers and Transporters)
 }
 
 const Dashboard = () => {
@@ -64,7 +68,7 @@ const Dashboard = () => {
   // Mock activity data
   const activityItems = [
     { id: 1, type: "transaction", message: "Batch #AF2389 shipped to wholesaler", time: "2 hours ago" },
-    { id: 2, type: "payment", message: "Received 2.5 SOL payment", time: "5 hours ago" },
+    { id: 2, type: "payment", message: "Received 2.5 WSOL payment", time: "5 hours ago" },
     { id: 3, type: "update", message: "Quality verification completed", time: "1 day ago" },
     { id: 4, type: "system", message: "Welcome to DecentralAgri platform", time: "3 days ago" },
   ];
@@ -88,18 +92,32 @@ const Dashboard = () => {
       const program = new Program(rawIdl as unknown as DecentralizedAgSupply, provider);
 
       const [participantPDA] = PublicKey.findProgramAddressSync(
-        [Buffer.from("participant"), anchorWallet?.publicKey?.toBuffer() || Buffer.alloc(0)],
+        [Buffer.from("participant"), anchorWallet.publicKey.toBuffer()],
         programId
       );
 
-      const participantAccount = await (program.account as any).participant.fetchNullable(participantPDA);
+      const participantAccount = await( program.account as any).participant.fetchNullable(participantPDA);
       if (participantAccount) {
         const roleKey = Object.keys(participantAccount.role)[0];
+        const role = roleKey.charAt(0).toUpperCase() + roleKey.slice(1);
+
+        // Calculate ATA for Farmers and Transporters (for WSOL)
+        let ata: string | undefined;
+        if (role === "Farmer" || role === "Transporter") {
+          const ataPubkey = getAssociatedTokenAddressSync(
+            TOKEN_MINT, // WSOL mint
+            anchorWallet.publicKey,
+            false // Allow owner off-curve (false for standard ATA)
+          );
+          ata = ataPubkey.toBase58();
+        }
+
         setParticipantData({
-          role: roleKey.charAt(0).toUpperCase() + roleKey.slice(1),
+          role,
           name: participantAccount.name,
           contactInfo: participantAccount.contactInfo,
           owner: participantAccount.owner.toBase58(),
+          ata,
         });
       } else {
         setParticipantData(null);
@@ -123,28 +141,28 @@ const Dashboard = () => {
           { name: "Log Harvest", icon: <Leaf size={24} />, link: "/logharvest", color: "from-green-500 to-green-600" },
           { name: "Payments", icon: <TrendingUp size={24} />, link: "/payments", color: "from-blue-500 to-blue-600" },
           { name: "Governance", icon: <Users size={24} />, link: "/governance", color: "from-purple-500 to-purple-600" },
-          { name: "Disputes", icon: <AlertTriangle size={24} />, link: "/disputes", color: "from-amber-500 to-amber-600" },
+          { name: "Disputes", icon: <AlertTriangle size={24} />, link: "/manage-disputes", color: "from-amber-500 to-amber-600" },
         ];
       case "Retailer":
         return [
           { name: "Fund Vault", icon: <ShoppingBag size={24} />, link: "/fundvault", color: "from-purple-500 to-purple-600" },
           { name: "Confirm Delivery", icon: <Truck size={24} />, link: "/confirmdelivery", color: "from-green-500 to-green-600" },
           { name: "Payments", icon: <TrendingUp size={24} />, link: "/payments", color: "from-blue-500 to-blue-600" },
-          { name: "Disputes", icon: <AlertTriangle size={24} />, link: "/disputes", color: "from-amber-500 to-amber-600" },
+          { name: "Disputes", icon: <AlertTriangle size={24} />, link: "/manage-disputes", color: "from-amber-500 to-amber-600" },
         ];
       case "Transporter":
         return [
           { name: "Record Transport", icon: <Truck size={24} />, link: "/transport", color: "from-blue-500 to-blue-600" },
           { name: "Payments", icon: <TrendingUp size={24} />, link: "/payments", color: "from-green-500 to-green-600" },
           { name: "Governance", icon: <Users size={24} />, link: "/governance", color: "from-purple-500 to-purple-600" },
-          { name: "Disputes", icon: <AlertTriangle size={24} />, link: "/disputes", color: "from-amber-500 to-amber-600" },
+          { name: "Disputes", icon: <AlertTriangle size={24} />, link: "/manage-disputes", color: "from-amber-500 to-amber-600" },
         ];
       default:
         return [
-          { name: "Track Produce", icon: <Truck size={24} />, link: "/track", color: "from-green-500 to-green-600" },
+          { name: "Track Produce", icon: <Truck size={24} />, link: "/produce-status", color: "from-green-500 to-green-600" },
           { name: "Payments", icon: <TrendingUp size={24} />, link: "/payments", color: "from-blue-500 to-blue-600" },
           { name: "Governance", icon: <Users size={24} />, link: "/governance", color: "from-purple-500 to-purple-600" },
-          { name: "Disputes", icon: <AlertTriangle size={24} />, link: "/disputes", color: "from-amber-500 to-amber-600" },
+          { name: "Disputes", icon: <AlertTriangle size={24} />, link: "/manage-disputes", color: "from-amber-500 to-amber-600" },
         ];
     }
   };
@@ -201,10 +219,23 @@ const Dashboard = () => {
                       {anchorWallet.publicKey.toBase58().slice(0, 8)}...
                       {anchorWallet.publicKey.toBase58().slice(-8)}
                     </p>
+                    {participantData.ata && (
+                      <p>
+                        <span className="font-medium">WSOL Payment ATA:</span>{" "}
+                        {participantData.ata}
+                        <span className="text-sm text-gray-500 block">
+                          (WSOL payments like farmer price or transporter fee will be sent here after delivery confirmation)
+                        </span>
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <p className="text-red-500">
-                    No participant data found. Please <Link href="/register" className="text-blue-600 underline">register</Link> first.
+                    No participant data found. Please{" "}
+                    <Link href="/register" className="text-blue-600 underline">
+                      register
+                    </Link>{" "}
+                    first.
                   </p>
                 )}
               </div>
@@ -241,7 +272,7 @@ const Dashboard = () => {
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {getFeatures().map((feature, index) => (
-                    <Link href={feature.link} key={index}>
+                    <Link href={`${feature.link}?source=button`} key={index}>
                       <motion.div
                         variants={cardHoverVariants}
                         whileHover="hover"
@@ -288,7 +319,7 @@ const Dashboard = () => {
                     className="flex justify-between items-center p-3 bg-blue-50 rounded-lg"
                   >
                     <span className="text-gray-700">Total Earnings</span>
-                    <span className="font-semibold">123.45 SOL</span>
+                    <span className="font-semibold">123.45 WSOL</span>
                   </motion.div>
 
                   <motion.div

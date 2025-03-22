@@ -463,11 +463,9 @@ export const HeroSection = () => {
                       Payment Information
                     </h4>
                   </div>
-                  <p className="text-gray-600 text-xs sm:text-sm">
-                    We're rewarding participants with our native FarmFlow Token
-                    (FFLOW) instead of direct retailer payments for now, while
-                    our governance system is under development!
-                  </p>
+                    <p className="text-gray-600 text-xs sm:text-sm">
+                    In our app, all transfers are conducted using WSOL tokens, ensuring secure and efficient transactions while our governance system is being developed.
+                    </p>
                 </div>
                 <div className="mb-4">
                   <div className="flex items-center mb-2 sm:mb-3">
