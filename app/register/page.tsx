@@ -285,7 +285,7 @@ const Register = () => {
           >
             This wallet is already registered as a <span className="font-semibold text-green-600">{registeredRole}</span>.
           </motion.p>
-          <Link href="/dashboard">
+          <Link href="/dashboard?source=button">
             <motion.button
               className="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg cursor-pointer transition shadow-lg"
               whileHover={{ scale: 1.02 }}

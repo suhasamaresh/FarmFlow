@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 export const CTASection = () => {
   const router = useRouter();
   const handleClick = (e: any) => {
-    router.push('/register');
+    router.push('/register?source=button');
   }
   return (
     <section className="py-16 px-4 bg-gradient-to-r from-green-600 to-green-800 text-white">

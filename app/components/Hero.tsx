@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 
 export const HeroSection = () => {
   const [showNotification, setShowNotification] = useState(false);
@@ -37,10 +38,11 @@ export const HeroSection = () => {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.7, duration: 0.8 }}
           >
-            <button className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 sm:py-3 px-4 sm:px-6 rounded-lg transition duration-300 shadow-lg text-sm sm:text-base">
+            <Link href="/register?source=button">
+            <button className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 cursor-pointer sm:py-3 px-4 sm:px-6 rounded-lg transition duration-300 shadow-lg text-sm sm:text-base">
               Get Started
-            </button>
-            <button className="bg-white border-2 border-green-600 text-green-600 hover:bg-green-50 font-semibold py-2 sm:py-3 px-4 sm:px-6 rounded-lg transition duration-300 shadow-lg flex items-center text-sm sm:text-base">
+            </button></Link>\<Link href={"/track?source=button"}>
+            <button className="bg-white border-2 cursor-pointer border-green-600 text-green-600 hover:bg-green-50 font-semibold py-2 sm:py-3 px-4 sm:px-6 rounded-lg transition duration-300 shadow-lg flex items-center text-sm sm:text-base">
               <svg
                 className="w-4 h-4 sm:w-5 sm:h-5 mr-2"
                 fill="none"
@@ -56,7 +58,7 @@ export const HeroSection = () => {
                 ></path>
               </svg>
               Track Produce
-            </button>
+            </button></Link>
             <motion.button
               className="fixed bottom-4 right-4 sm:absolute sm:bottom-20 sm:right-20 md:right-80 cursor-pointer z-40 bg-green-500 text-white h-10 w-10 rounded-full flex items-center justify-center shadow-lg"
               initial={{ scale: 0.9 }}

@@ -141,28 +141,28 @@ const Dashboard = () => {
           { name: "Log Harvest", icon: <Leaf size={24} />, link: "/logharvest", color: "from-green-500 to-green-600" },
           { name: "Payments", icon: <TrendingUp size={24} />, link: "/payments", color: "from-blue-500 to-blue-600" },
           { name: "Governance", icon: <Users size={24} />, link: "/governance", color: "from-purple-500 to-purple-600" },
-          { name: "Disputes", icon: <AlertTriangle size={24} />, link: "/manage-disputes", color: "from-amber-500 to-amber-600" },
+          { name: "Disputes", icon: <AlertTriangle size={24} />, link: "/disputes", color: "from-amber-500 to-amber-600" },
         ];
       case "Retailer":
         return [
           { name: "Fund Vault", icon: <ShoppingBag size={24} />, link: "/fundvault", color: "from-purple-500 to-purple-600" },
           { name: "Confirm Delivery", icon: <Truck size={24} />, link: "/confirmdelivery", color: "from-green-500 to-green-600" },
           { name: "Payments", icon: <TrendingUp size={24} />, link: "/payments", color: "from-blue-500 to-blue-600" },
-          { name: "Disputes", icon: <AlertTriangle size={24} />, link: "/manage-disputes", color: "from-amber-500 to-amber-600" },
+          { name: "Disputes", icon: <AlertTriangle size={24} />, link: "/disputes", color: "from-amber-500 to-amber-600" },
         ];
       case "Transporter":
         return [
           { name: "Record Transport", icon: <Truck size={24} />, link: "/transport", color: "from-blue-500 to-blue-600" },
           { name: "Payments", icon: <TrendingUp size={24} />, link: "/payments", color: "from-green-500 to-green-600" },
           { name: "Governance", icon: <Users size={24} />, link: "/governance", color: "from-purple-500 to-purple-600" },
-          { name: "Disputes", icon: <AlertTriangle size={24} />, link: "/manage-disputes", color: "from-amber-500 to-amber-600" },
+          { name: "Disputes", icon: <AlertTriangle size={24} />, link: "/disputes", color: "from-amber-500 to-amber-600" },
         ];
       default:
         return [
-          { name: "Track Produce", icon: <Truck size={24} />, link: "/produce-status", color: "from-green-500 to-green-600" },
+          { name: "Track Produce", icon: <Truck size={24} />, link: "/track", color: "from-green-500 to-green-600" },
           { name: "Payments", icon: <TrendingUp size={24} />, link: "/payments", color: "from-blue-500 to-blue-600" },
           { name: "Governance", icon: <Users size={24} />, link: "/governance", color: "from-purple-500 to-purple-600" },
-          { name: "Disputes", icon: <AlertTriangle size={24} />, link: "/manage-disputes", color: "from-amber-500 to-amber-600" },
+          { name: "Disputes", icon: <AlertTriangle size={24} />, link: "/disputes", color: "from-amber-500 to-amber-600" },
         ];
     }
   };
@@ -309,7 +309,7 @@ const Dashboard = () => {
                     className="flex justify-between items-center p-3 bg-green-50 rounded-lg"
                   >
                     <span className="text-gray-700">Active Batches</span>
-                    <span className="font-semibold">3</span>
+                    <span className="font-semibold text-gray-400">3</span>
                   </motion.div>
 
                   <motion.div
@@ -319,7 +319,7 @@ const Dashboard = () => {
                     className="flex justify-between items-center p-3 bg-blue-50 rounded-lg"
                   >
                     <span className="text-gray-700">Total Earnings</span>
-                    <span className="font-semibold">123.45 WSOL</span>
+                    <span className="font-semibold text-gray-400">123.45 WSOL</span>
                   </motion.div>
 
                   <motion.div
@@ -329,7 +329,7 @@ const Dashboard = () => {
                     className="flex justify-between items-center p-3 bg-purple-50 rounded-lg"
                   >
                     <span className="text-gray-700">Active Proposals</span>
-                    <span className="font-semibold">2</span>
+                    <span className="font-semibold text-gray-400">2</span>
                   </motion.div>
                 </div>
               )}
