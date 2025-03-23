@@ -32,6 +32,4 @@ jobs:
       - name: Build App
         run: npm run build
 
-      # Step 5: Run tests (optional, uncomment if you have tests)
-      # - name: Run Tests
-      #   run: npm test
+     
